@@ -1,0 +1,366 @@
+
+from IPython.display import HTML
+
+import numpy as np
+import pandas as pd
+
+df = pd.read_csv("C:/Users/bhard/Desktop/PROJECTS\Restaurant_Sentiment_Analysis-main/Restaurant_Reviews.tsv",delimiter='\t',quoting=3)
+
+df.shape
+
+df.columns
+
+df.head()
+
+df.tail()
+
+df.sample(10)
+
+df.info()
+
+df['Liked'].value_counts()
+
+df.describe()
+
+df.isnull().sum()
+
+df.duplicated().sum()
+
+df['Length']=df['Review'].apply(len)
+df.head(5)
+
+Importing essential NLP libraries
+
+import nltk
+import re
+
+nltk.download('stopwords')
+
+from nltk.corpus import stopwords
+from nltk.stem.porter import PorterStemmer
+
+print(list(stopwords.words('english')))
+
+corpus=[]
+for i in range(0,1000):
+  review=re.sub(pattern='[^a-zA-Z]', repl=' ',string=df['Review'][i])
+
+  review = review.lower()
+
+  review_words = review.split()
+
+  review_words = [word for word in review_words if not word in set(stopwords.words('english'))]
+
+  ps = PorterStemmer()
+  review = [ps.stem(word) for word in review_words]
+  review = ' '.join(review)
+  corpus.append(review)
+
+corpus[:20]
+
+from wordcloud import WordCloud
+import matplotlib.pyplot as plt
+word_cloud = df.loc[df['Liked']==1,:]
+text = ' '.join([text for text in word_cloud['Review']])
+wordcloud = WordCloud(width=800, height=400,background_color='white').generate(text)
+plt.figure(figsize=(10,5))
+plt.imshow(wordcloud, interpolation='bilinear')
+plt.axis('off')
+plt.show()
+
+from sklearn.feature_extraction.text import CountVectorizer
+cv = CountVectorizer(max_features=2000)
+
+
+X=cv.fit_transform(corpus).toarray()
+y = df.iloc[:, 1].values
+
+from sklearn.model_selection import train_test_split
+X_train , X_test , y_train , y_test = train_test_split(X,y,test_size=0.20,random_state=0)
+
+X_train.shape , X_test.shape , y_train.shape , y_test.shape
+
+from sklearn.metrics import accuracy_score
+from sklearn.naive_bayes import MultinomialNB
+from sklearn.ensemble import (
+    RandomForestClassifier, GradientBoostingClassifier,
+    AdaBoostClassifier, BaggingClassifier, ExtraTreesClassifier,
+)
+from sklearn.svm import SVC, LinearSVC, NuSVC
+from sklearn.linear_model import (
+    LogisticRegression, SGDClassifier, RidgeClassifier,
+)
+from sklearn.tree import DecisionTreeClassifier, ExtraTreeClassifier
+from sklearn.neural_network import MLPClassifier
+from sklearn.model_selection import KFold
+import numpy as np
+
+models = {
+    'MultinomialNB': MultinomialNB(),
+    'RandomForestClassifier': RandomForestClassifier(),
+    'GradientBoostingClassifier': GradientBoostingClassifier(),
+    'AdaBoostClassifier': AdaBoostClassifier(),
+    'BaggingClassifier': BaggingClassifier(),
+    'ExtraTreesClassifier': ExtraTreesClassifier(),
+    'SVC': SVC(),
+    'LinearSVC': LinearSVC(),
+    'NuSVC': NuSVC(),
+    'LogisticRegression': LogisticRegression(),
+    'SGDClassifier': SGDClassifier(),
+    'RidgeClassifier': RidgeClassifier(),
+    'DecisionTreeClassifier': DecisionTreeClassifier(),
+
+}
+
+model_accuracies = {}
+model_accuracies_diff = {}
+num_folds = 11
+kf = KFold(n_splits=num_folds, shuffle=True, random_state=42)
+for model_name, model in models.items():
+    train_accuracies = []
+    test_accuracies = []
+    for train_index, test_index in kf.split(X):
+        X_train, X_test = X[train_index], X[test_index]
+        y_train, y_test = y[train_index], y[test_index]
+
+        model.fit(X_train, y_train)
+        y_train_pred = model.predict(X_train)
+        y_test_pred = model.predict(X_test)
+
+        train_accuracy = accuracy_score(y_train, y_train_pred)
+        test_accuracy = accuracy_score(y_test, y_test_pred)
+
+        train_accuracies.append(train_accuracy)
+        test_accuracies.append(test_accuracy)
+
+        average_train_accuracy = np.mean(train_accuracies)
+        average_test_accuracy = np.mean(test_accuracies)
+        accuracy_diff = abs(average_train_accuracy - average_test_accuracy)
+
+        # Print training and testing accuracy for the model
+        print(f"{model_name}: Training Accuracy={average_train_accuracy * 100:.2f}%, Testing Accuracy={average_test_accuracy * 100:.2f}%, Accuracy Difference={accuracy_diff * 100:.2f}%")
+        #print("="*149)
+
+        # Store the average testing accuracy and the difference in accuracies in the model_accuracies and model_accuracies_diff dictionaries
+        model_accuracies[model_name] = average_test_accuracy
+        model_accuracies_diff[model_name] = accuracy_diff
+
+sorted_models = sorted(model_accuracies_diff.items(), key=lambda x: x[1])
+print()
+# Print the best models in ascending order of accuracy difference
+#print("︻"*149)
+print()
+print("Best Models (Closest Training and Testing Accuracy):")
+print()
+#print("︻"*149)
+print()
+for model_name, accuracy_diff in sorted_models:
+    print(f"{model_name}: Accuracy Difference={accuracy_diff * 100:.2f}%")
+    print("-"*100)
+best_model_name = sorted_models[0][0]
+print(f"The Best Model is: {best_model_name}")
+
+
+y_pred = model.predict(X_test)
+y_pred
+
+Model Training
+
+from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score, confusion_matrix, classification_report
+from sklearn.ensemble import AdaBoostClassifier
+from sklearn.model_selection import KFold
+import numpy as np
+
+# Load your data (X and y) here
+
+# Create an AdaBoostClassifier instance
+ada_boost_classifier = AdaBoostClassifier()
+
+# Specify the number of folds (k)
+num_folds = 11
+
+# Initialize a KFold cross-validator
+kf = KFold(n_splits=num_folds, shuffle=True, random_state=42)
+train_accuracies = []
+test_accuracies = []
+precision_scores = []
+recall_scores = []
+f1_scores = []
+confusion_matrices = []
+classification_reports = []
+
+# Loop through each fold
+for train_index, test_index in kf.split(X):
+    X_train, X_test = X[train_index], X[test_index]
+    y_train, y_test = y[train_index], y[test_index]
+
+    # Train the AdaBoostClassifier on the training data
+    ada_boost_classifier.fit(X_train, y_train)
+
+    # Make predictions on the training data
+    y_train_pred = ada_boost_classifier.predict(X_train)
+    train_accuracy = accuracy_score(y_train, y_train_pred)
+    train_accuracies.append(train_accuracy)
+
+    # Make predictions on the testing data
+    y_test_pred = ada_boost_classifier.predict(X_test)
+
+    # Calculate testing accuracy for the fold
+    test_accuracy = accuracy_score(y_test, y_test_pred)
+    test_accuracies.append(test_accuracy)
+
+    # Calculate precision, recall, and F1-score for the fold
+    precision = precision_score(y_test, y_test_pred)
+    recall = recall_score(y_test, y_test_pred)
+    f1 = f1_score(y_test, y_test_pred)
+
+    precision_scores.append(precision)
+    recall_scores.append(recall)
+    f1_scores.append(f1)
+    confusion = confusion_matrix(y_test, y_test_pred)
+    confusion_matrices.append(confusion)
+
+    # Generate and store the classification report for the fold
+    classification = classification_report(y_test, y_test_pred)
+    classification_reports.append(classification)
+
+# Calculate the average training and testing accuracies
+average_train_accuracy = np.mean(train_accuracies)
+average_test_accuracy = np.mean(test_accuracies)
+average_accuracy_difference = np.mean(train_accuracy - test_accuracies)
+# Calculate the average precision, recall, and F1-score
+average_precision = np.mean(precision_scores)
+average_recall = np.mean(recall_scores)
+average_f1 = np.mean(f1_scores)
+print("AdaBoostClassifier Results:")
+ 
+print(f"Average Training Accuracy: {average_train_accuracy * 100:.2f}%")
+
+print(f"Average Testing Accuracy: {average_test_accuracy * 100:.2f}%")
+
+print(f"Average Accuracies Difference: {average_accuracy_difference * 100:.2f}%")
+print("-"*150)
+print(f"Average Precision: {average_precision:.2f}")
+print("-"*150)
+print(f"Average Recall: {average_recall:.2f}")
+print("-"*150)
+print(f"Average F1-score: {average_f1:.2f}")
+print("-"*150)
+
+from sklearn.metrics import accuracy_score
+from sklearn.ensemble import AdaBoostClassifier
+from sklearn.model_selection import StratifiedKFold
+import numpy as np
+
+# Load your data (X and y) here
+
+# Create an AdaBoostClassifier instance
+ada_boost_classifier = AdaBoostClassifier()
+
+# Specify the number of folds (k) and use StratifiedKFold
+num_folds = 5
+stratified_kf = StratifiedKFold(n_splits=num_folds, shuffle=True, random_state=42)
+
+# Lists to store metrics for each fold
+train_accuracies = []
+test_accuracies = []
+for train_index, test_index in stratified_kf.split(X, y):  # Notice the addition of 'y'
+    X_train, X_test = X[train_index], X[test_index]
+    y_train, y_test = y[train_index], y[test_index]
+
+    # Train the AdaBoostClassifier on the training data
+    ada_boost_classifier.fit(X_train, y_train)
+
+    # Make predictions on the training data
+    y_train_pred = ada_boost_classifier.predict(X_train)
+
+    # Calculate training accuracy for the fold
+    train_accuracy = accuracy_score(y_train, y_train_pred)
+    train_accuracies.append(train_accuracy)
+
+    # Make predictions on the testing data
+    y_test_pred = ada_boost_classifier.predict(X_test)
+
+    # Calculate testing accuracy for the fold
+    test_accuracy = accuracy_score(y_test, y_test_pred)
+    test_accuracies.append(test_accuracy)
+average_train_accuracy = np.mean(train_accuracies)
+average_test_accuracy = np.mean(test_accuracies)
+average_accuaracy_difference = np.mean(train_accuracy - test_accuracies)
+# Print the results
+# print("AdaBoostClassifier Results with Stratified k-fold Cross-Validation:")
+# print("="*149)
+# print(f"Average Training Accuracy: {average_train_accuracy * 100:.2f}%")
+# print("="*149)
+# print(f"Average Testing Accuracy: {average_test_accuracy * 100:.2f}%")
+# print("="*149)
+# print(f"Average Accuracy Difference: {average_accuaracy_difference * 100:.2f}%")
+# print("="*149)
+
+import matplotlib.pyplot as plt
+categories = ['Training Accuracy', 'Testing Accuracy', 'Accuracy Difference']
+values = [average_train_accuracy, average_test_accuracy, average_accuaracy_difference]
+plt.bar(categories, values, color=['blue', 'green', 'red'])
+plt.ylabel('Accuracy')
+plt.title('Average Training and Testing Accuracies')
+plt.ylim(0, 1.0)  # Set the y-axis limits between 0 and 1
+plt.show()
+
+
+import re
+from nltk.corpus import stopwords
+from nltk.stem.porter import PorterStemmer
+
+def predict_sentiment(sample_review, ada_boost_classifier, cv):
+    # Preprocess the sample review
+    sample_review = re.sub(pattern='[^a-zA-Z]', repl=' ', string=sample_review)
+    sample_review = sample_review.lower()
+    sample_review_words = sample_review.split()
+    sample_review_words = [word for word in sample_review_words if not word in set(stopwords.words('english'))]
+    ps = PorterStemmer()
+    final_review = [ps.stem(word) for word in sample_review_words]
+    final_review = ' '.join(final_review)
+    temp = cv.transform([final_review]).toarray()
+
+    # Use the pre-trained classifier to predict sentiment
+    sentiment = ada_boost_classifier.predict(temp)
+
+    return sentiment[0]  # Return the predicted sentiment (assuming it's a single value)
+
+reviews = [
+    'The food is really bad.',
+    'I love their delicious dishes!',
+    'Terrible experience. Avoid this place.',
+    'The service was excellent.',
+    'Worst place ever, but nice food'
+]
+
+for review in reviews:
+    sentiment = predict_sentiment(review, ada_boost_classifier, cv)
+    if sentiment:
+        sentiment_label = 'POSITIVE'
+    else:
+        sentiment_label = 'NEGATIVE'
+
+    print(f"Review: '{review}'")
+    print(f"Sentiment: {sentiment_label}")
+    print()
+
+print("AdaBoostClassifier Results with Stratified k-fold Cross-Validation:")
+print("="*149)
+print(f"Average Training Accuracy: {average_train_accuracy * 100:.2f}%")
+print("="*149)
+print(f"Average Testing Accuracy: {average_test_accuracy * 100:.2f}%")
+print("="*149)
+print(f"Average Accuracy Difference: {average_accuaracy_difference * 100:.2f}%")
+print("="*149)
+
+categories = ['Training Accuracy', 'Testing Accuracy', 'Accuracy Difference']
+values = [average_train_accuracy, average_test_accuracy, average_accuaracy_difference]
+plt.bar(categories, values, color=['blue', 'green', 'red'])
+plt.ylabel('Accuracy')
+plt.title('Average Training and Testing Accuracies')
+plt.ylim(0, 1.0)  # Set the y-axis limits between 0 and 1
+plt.show()
+
+
